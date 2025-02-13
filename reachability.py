@@ -33,6 +33,8 @@ tier2 = [6939, 7713, 3491, 4826, 9002, 1221, 7922, 4134, 4766, 1257, 3292, 22652
 # spirit 2711 (zu niedrig)
 
 def read_as_relationship(filename):
+    global types 
+    types = {8075:0, 15169:0, 16509:0, 36351:0}
     with open(filename) as f:
         raw = f.readlines()
         for line in raw:
@@ -99,7 +101,6 @@ def read_as_relationship(filename):
         types[a] = 2
     # for a in all_vodafone_ases_tier2:
     #     types[a] = 2
-    print(len(all_ases))
 
 def reachability(bypass=[]):
     # 'moving down' (p2c) and 'moving on same layer' (p2p) reachability amount
@@ -152,7 +153,6 @@ import matplotlib.pyplot as plt
 label_ases = [a[0] for a in plotable_ases]
 labels = [as_to_name[i] for i in label_ases]
 n_groups = len(labels)
-print(len(types))
 # Drei Werte für jede Säule (hinterster Wert ist der größte)
 values1 = np.array([a[3] for a in plotable_ases])  # Vorderster Wert
 values2 = np.array([a[2] for a in plotable_ases])  # Mittlerer Wert
