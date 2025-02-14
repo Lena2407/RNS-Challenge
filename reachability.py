@@ -11,7 +11,7 @@ p2p = {}
 
 
 # ixp = set()
-# all_ases = set()
+all_ases = set()
 
 as_to_name = {8075:"Microsoft", 15169:"Google", 16509:"Amazon", 36351:"IBM", 
               174:"Cogent", 209:"Centurylink", 286:"KPN", 701:"VZ Business", 1239:"Sprint", 1299:"Telia", 2828:"VZ", 2914:"NTT", 
@@ -51,8 +51,8 @@ def read_as_relationship(filename):
                 #         ixp.add(words[i])
             else:
                 connection = line.split("|")
-                # all_ases.add(connection[0])
-                # all_ases.add(connection[1])
+                all_ases.add(connection[0])
+                all_ases.add(connection[1])
                 if (connection[2] == "0"): # peer connections (p2p) are indicated by connection type number 0
                     for i in range(2):
                         peer_1 = int(connection[i])
@@ -135,7 +135,7 @@ def reachability(bypass=[]):
     return reachable
 
                   
-read_as_relationship("Data/20200901.as-rel2.txt")
+read_as_relationship("Data/20240901.as-rel2.txt")
 provider_free = reachability()
 tier_1_free = reachability([1])
 hierarchy_free = reachability([1,2])
@@ -170,7 +170,7 @@ if (sort_by_type):
     type_sorted_ases = []
     for i in range(3):
         for a in plotable_ases:
-            if (types[a[0]] == i):
+            if (types[a[0]] == (i+1)%3):
                 type_sorted_ases.append(a)
     print(len(type_sorted_ases))
     print(len(plotable_ases))
@@ -215,9 +215,10 @@ base_colors = [[colors[types[a[0]]][0] for a in plotable_ases],#["#6495ed", "#f0
                [colors[types[a[0]]][2] for a in plotable_ases]]#["#0000ff", "#ff0000", "#008000"]]
 
 
-fig, ax = plt.subplots(figsize=(16, 6))
+fig, ax = plt.subplots(figsize=(16, 8))
 bar_width = 0.85
 opacity = 1
+fig.subplots_adjust(bottom=0.15)
 # ax.set_ylim([0, max([a[1] for a in plotable_ases])])
 
 bottom = np.zeros(len(df))  # Initial bottom for stacking
@@ -240,34 +241,36 @@ for i, col in enumerate(df.columns):
 #     ax.bar(i, values1[i], color=base_colors[i], alpha=1.0, width=bar_width)
 
 # Achsenbeschriftungen
-ax.set_xlabel("Network reachablility")
+ax.set_xlabel("Cloud providers, Tier-1, and Tier-2 ISPs sorted by descending hierarchy-free reachability")
 ax.set_ylabel("Number of ASes reachable")
-ax.set_title("Network reachability on CAIDA dataset from 2015")
+ax.set_title("Network reachability on CAIDA dataset from september 2024")
 # ax.set_xticks(np.arange(n_groups))
 # ax.set_xticklabels(labels, rotation=90)
-
+ax.set_xlim(-1.5, len(types) + 6.5)
 
 
 legend_elements = [
-    Line2D.Line2D([0], [0], color='black', lw=2, label="Cloud Reachability"),
+    Line2D.Line2D([0], [0], color='black', lw=2, label="Cloud"),
     Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#0000ff', markersize=10, label="Provider-free"),
     Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#4169e1', markersize=10, label="Tier1-free"),
     Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#6495ed', markersize=10, label="Hierarchy-free"),
 
-    Line2D.Line2D([0], [0], color='black', lw=2, label="Tier1 Reachability"),
+    Line2D.Line2D([0], [0], color='black', lw=2, label="Tier1"),
     Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#ff0000', markersize=10, label="Provider-free"),
     Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#cd5c5c', markersize=10, label="Tier1-free"),
     Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#f08080', markersize=10, label="Hierarchy-free"),
 
-    Line2D.Line2D([0], [0], color='black', lw=2, label="Tier2 Reachability"),
+    Line2D.Line2D([0], [0], color='black', lw=2, label="Tier2"),
     Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#008000', markersize=10, label="Provider-free"),
     Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#32cd32', markersize=10, label="Tier1-free"),
     Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#98fb98', markersize=10, label="Hierarchy-free"),
 ]
 
 # Add the legend to the plot
-ax.legend(handles=legend_elements, loc="upper right", title="Network Categories")
+ax.legend(handles=legend_elements, loc="upper right", title="Reachability", )
 
 plt.xticks(rotation=90)
 
 plt.show()
+
+fig2, ax2 = plt.subplots(figsize=(16, 8))
