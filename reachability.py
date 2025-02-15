@@ -241,7 +241,7 @@ for i, col in enumerate(df.columns):
 #     ax.bar(i, values1[i], color=base_colors[i], alpha=1.0, width=bar_width)
 
 # Achsenbeschriftungen
-ax.set_xlabel("Cloud providers, Tier-1, and Tier-2 ISPs sorted by descending hierarchy-free reachability")
+ax.set_xlabel("Networks grouped by cloud providers, Tier-1, and Tier-2 ISPs and sorted by descending hierarchy-free reachability")
 ax.set_ylabel("Number of ASes reachable")
 ax.set_title("Network reachability on CAIDA dataset from september 2024")
 # ax.set_xticks(np.arange(n_groups))
