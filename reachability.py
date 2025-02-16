@@ -146,6 +146,7 @@ def calculate_and_plot(filename, sort_by_type, replot):
     provider_free = reachability(types, p2c, p2p)
     tier_1_free = reachability(types, p2c, p2p, [1])
     hierarchy_free = reachability(types, p2c, p2p, [1,2])
+    print(filename, len(all_ases))
 
     # pandas
     # idx = []
@@ -190,8 +191,6 @@ def calculate_and_plot(filename, sort_by_type, replot):
 
 
     df = pd.DataFrame(sorted_data, index=[as_to_name[a[0]] for a in plotable_ases])
-
-    year = filename.split("/")[-1][0:4]
 
     if (replot):
         # df.plot(kind="")
@@ -244,8 +243,9 @@ def calculate_and_plot(filename, sort_by_type, replot):
 
         # Achsenbeschriftungen
         xlabel = "Network{grouping} cloud providers, Tier-1, and Tier-2 ISPs and sorted by descending hierarchy-free reachability"
-        title = "Network reachability on CAIDA dataset from {month} {year}"
+        title = "Network reachability on CAIDA dataset from december {year}"
         group_str = "s grouped by" if sort_by_type else ""
+        year = filename.split("/")[-1][0:4]
         month = "december" if year == "2015" else "september"
 
         ax.set_xlabel(xlabel.format(grouping=group_str))
@@ -280,26 +280,74 @@ def calculate_and_plot(filename, sort_by_type, replot):
 
         plt.xticks(rotation=90)
 
-    grouped = "" if sort_by_type else "un"
-    png_name = "Diagrams/{year}_{un}grouped".format(year=year, un=grouped)
-    plt.savefig(png_name)
-    # plt.show()
-    print("Created Diagram ", png_name)
-    return sorted_data
+        grouped = "" if sort_by_type else "un"
+        png_name = "Diagrams/{year}_{un}grouped".format(year=year, un=grouped)
+        plt.savefig(png_name)
+        # plt.show()
+        print("Created Diagram ", png_name)
+    return df
 
-replot = False 
+
+
+
+def plot_reachability_perc(dataframe, year, compare=False, comparator=[]):
+    df_display = dataframe.iloc[:20][["hierarchy-free", "reachability", "as-type"]]
+    df_display["hierarchy-free"] = df_display["hierarchy-free"].astype(int)  # Convert to int
+    df_display["reachability"] = (df_display["reachability"] * 100).map("{:.1f}%".format)  # Convert to %
+
+    if (compare):
+        df_display["reachability_inc"] = ((dataframe["reachability"] - comparator["reachability"]) * 100).map("{:.1f}%".format)
+
+        # Prepare table data
+    row_labels = df_display.index.astype(str)  # Use index as row labels
+    col_labels = ["#", "Network", "Ases rechable", "Reachability"]  # Table headers
+    if (compare):
+        col_labels.append("Reachability inrease")
+    if (compare):
+        table_data = [[i+1, row_labels[i], df_display.iloc[i, 0], df_display.iloc[i, 1], df_display.iloc[i,3]] for i in range(len(df_display))]
+    else:
+        table_data = [[i+1, row_labels[i], df_display.iloc[i, 0], df_display.iloc[i, 1]] for i in range(len(df_display))]
+
+    # Define colors based on "as-type"
+    row_colors = {0: "#add8e6", 1: "#ff9999", 2: "#90ee90"}  # Blue, Red, Green
+    row_color_list = [row_colors[val] for val in df_display["as-type"]]
+
+    # Plot table
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.axis("tight")
+    ax.axis("off")
+
+    # Create table
+    table = ax.table(cellText=table_data, 
+                    colLabels=col_labels,
+                    cellLoc="center",
+                    loc="center",
+                    cellColours=[[row_color_list[i]] * len(col_labels) for i in range(len(df_display))])
+
+    # Format table
+    #ax.set_title(year)
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    # if (compare):
+    #     width.append(5)
+    # table.auto_set_column_width(width)  # Adjust column width
+    table.scale(1,1.5)
+    for i, col_label in enumerate(col_labels):
+        table.auto_set_column_width([i])
+
+    plt.savefig("Diagrams/{year}_reachability.png".format(year=year))
+    #plt.show()
+
+
+replot = True 
 calculate_and_plot("Data/20151201.as-rel2.txt", True, replot)
 data_2015 = calculate_and_plot("Data/20151201.as-rel2.txt", False, replot)
 calculate_and_plot("Data/20200901.as-rel2.txt", True, replot)
-data_2020 = calculate_and_plot("Data/20200901.as-rel2.txt", False, replot)
+data_2020 = calculate_and_plot("Data/20201201.as-rel2.txt", False, replot)
 calculate_and_plot("Data/20240901.as-rel2.txt", True, replot)
-data_2024 = calculate_and_plot("Data/20240901.as-rel2.txt", False, replot)
+data_2024 = calculate_and_plot("Data/20241201.as-rel2.txt", False, replot)
 
-fig, ax = plt.subplots(figsize=(8, 16))  # Adjust size as needed
-ax.axis('tight')  # Remove empty space
-ax.axis('off')    # Hide axes
+plot_reachability_perc(data_2015, "2015")
+plot_reachability_perc(data_2020, "2020", True, data_2015)
+plot_reachability_perc(data_2024, "2024", True, data_2020)
 
-# Create the table
-table = ax.table(cellText=data_2015.values, colLabels=data_2015.columns, loc='center')
-
-plt.show()
