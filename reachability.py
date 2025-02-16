@@ -1,17 +1,16 @@
 
 import matplotlib.pyplot as plt
 import matplotlib.lines as Line2D
+import numpy as np
+import matplotlib.pyplot as plt
 
 import pandas as pd
 
-types = {8075:0, 15169:0, 16509:0, 36351:0} # 0 = cloud, 1 = tier-1, 2 = tier-2, 3 = was customer if tier-1, 4 = was provider
-p2c = {}
-p2p = {}
+
 
 
 
 # ixp = set()
-all_ases = set()
 
 as_to_name = {8075:"Microsoft", 15169:"Google", 16509:"Amazon", 36351:"IBM", 
               174:"Cogent", 209:"Centurylink", 286:"KPN", 701:"VZ Business", 1239:"Sprint", 1299:"Telia", 2828:"VZ", 2914:"NTT", 
@@ -36,8 +35,10 @@ tier2 = [6939, 7713, 3491, 4826, 9002, 1221, 7922, 4134, 4766, 1257, 3292, 22652
 # spirit 2711 (zu niedrig)
 
 def read_as_relationship(filename):
-    global types 
-    types = {8075:0, 15169:0, 16509:0, 36351:0}
+    types = {8075:0, 15169:0, 16509:0, 36351:0} # 0 = cloud, 1 = tier-1, 2 = tier-2, 3 = was customer if tier-1, 4 = was provider
+    p2c = {}
+    p2p = {}
+    all_ases = set()  
     with open(filename) as f:
         raw = f.readlines()
         for line in raw:
@@ -107,7 +108,9 @@ def read_as_relationship(filename):
         if (not a in types):
             types[a] = 2
 
-def reachability(bypass=[]):
+    return types, p2c, p2p, all_ases
+
+def reachability(types, p2c, p2p, bypass=[]):
     # 'moving down' (p2c) and 'moving on same layer' (p2p) reachability amount
     reachable = {}
     for a in types:
@@ -134,143 +137,169 @@ def reachability(bypass=[]):
                             stack.append(n)
     return reachable
 
-                  
-read_as_relationship("Data/20240901.as-rel2.txt")
-provider_free = reachability()
-tier_1_free = reachability([1])
-hierarchy_free = reachability([1,2])
+def calculate_and_plot(filename, sort_by_type, replot):
+    types = {8075:0, 15169:0, 16509:0, 36351:0} # 0 = cloud, 1 = tier-1, 2 = tier-2, 3 = was customer if tier-1, 4 = was provider
+    p2c = {}
+    p2p = {}
+    all_ases = set()                  
+    types, p2c, p2p, all_ases = read_as_relationship(filename)
+    provider_free = reachability(types, p2c, p2p)
+    tier_1_free = reachability(types, p2c, p2p, [1])
+    hierarchy_free = reachability(types, p2c, p2p, [1,2])
 
-# pandas
-idx = []
-provider_free_list = []
-tier_1_free_list = []
-hierarchy_free_list = []
-as_type_list =[]
-
-
-plotable_ases = []
-for a in types:
-    ases_reachable = [a]
-    ases_reachable.append(len(provider_free[a]))
-    ases_reachable.append(len(tier_1_free[a]))
-    ases_reachable.append(len(hierarchy_free[a]))
-    plotable_ases.append(ases_reachable)
     # pandas
-    # idx.append(as_to_name[a])
-    # provider_free_list.append(len(provider_free[a]))
-    # tier_1_free_list.append(len(tier_1_free[a]))
-    # hierarchy_free_list.append(len(hierarchy_free[a]))
-    # as_type_list.append(types[a])
-
-sort_by_type = True
-
-plotable_ases.sort(key=lambda x: x[3], reverse=True)
-print(len(plotable_ases))
-if (sort_by_type):
-    type_sorted_ases = []
-    for i in range(3):
-        for a in plotable_ases:
-            if (types[a[0]] == (i+1)%3):
-                type_sorted_ases.append(a)
-    print(len(type_sorted_ases))
-    print(len(plotable_ases))
-    plotable_ases = type_sorted_ases
+    # idx = []
+    # provider_free_list = []
+    # tier_1_free_list = []
+    # hierarchy_free_list = []
+    # as_type_list =[]
 
 
-# pandas
-sorted_data = { 
-    "provider-free":[a[1] for a in plotable_ases],
-    "tier-1-free":[a[2] for a in plotable_ases],
-    "hierarchy-free":[a[3] for a in plotable_ases],
-    "as-type":[types[a[0]] for a in plotable_ases]
-}
+    plotable_ases = []
+    for a in types:
+        ases_reachable = [a]
+        ases_reachable.append(len(provider_free[a]))
+        ases_reachable.append(len(tier_1_free[a]))
+        ases_reachable.append(len(hierarchy_free[a]))
+        plotable_ases.append(ases_reachable)
+        # pandas
+        # idx.append(as_to_name[a])
+        # provider_free_list.append(len(provider_free[a]))
+        # tier_1_free_list.append(len(tier_1_free[a]))
+        # hierarchy_free_list.append(len(hierarchy_free[a]))
+        # as_type_list.append(types[a])
+    plotable_ases.sort(key=lambda x: x[3], reverse=True)
+    if (sort_by_type):
+        type_sorted_ases = []
+        for i in range(3):
+            for a in plotable_ases:
+                if (types[a[0]] == (i+1)%3):
+                    type_sorted_ases.append(a)
+        plotable_ases = type_sorted_ases
 
 
-df = pd.DataFrame(sorted_data, index=[as_to_name[a[0]] for a in plotable_ases])
-print(df)
-
-import numpy as np
-import matplotlib.pyplot as plt
-
-# df.plot(kind="")
-
-# Beispiel-Daten
-label_ases = [a[0] for a in plotable_ases]
-# labels = [as_to_name[i] for i in label_ases]
-# n_groups = len(labels)
-# # Drei Werte für jede Säule (hinterster Wert ist der größte)
-# values1 = np.array([a[3] for a in plotable_ases])  # Vorderster Wert
-# values2 = np.array([a[2] for a in plotable_ases])  # Mittlerer Wert
-# values3 = np.array([a[1] for a in plotable_ases])  # Hinterster Wert
-
-# color_dict = {0:"blue", 1:"red", 2:"green"}
-
-# Farben für jede Säule (Basisfarben für vorderste Werte)
-# base_colors = [color_dict[types[i]] for i in label_ases]
-colors =   [["#6495ed", "#4169e1", "#0000ff"], # blue
-            ["#f08080", "#cd5c5c", "#ff0000"], # red
-            ["#98fb98", "#32cd32", "#008000"]] # green
-base_colors = [[colors[types[a[0]]][0] for a in plotable_ases],#["#6495ed", "#f08080", "#98fb98"],
-               [colors[types[a[0]]][1] for a in plotable_ases],#["#4169e1", "#cd5c5c", "#32cd32"],
-               [colors[types[a[0]]][2] for a in plotable_ases]]#["#0000ff", "#ff0000", "#008000"]]
+    # pandas
+    sorted_data = { 
+        "provider-free":[a[1] for a in plotable_ases],
+        "tier-1-free":[a[2] for a in plotable_ases],
+        "hierarchy-free":[a[3] for a in plotable_ases],
+        "reachability":[a[3]/len(all_ases) for a in plotable_ases],
+        "as-type":[types[a[0]] for a in plotable_ases]
+    }
 
 
-fig, ax = plt.subplots(figsize=(16, 8))
-bar_width = 0.85
-opacity = 1
-fig.subplots_adjust(bottom=0.15)
-# ax.set_ylim([0, max([a[1] for a in plotable_ases])])
 
-bottom = np.zeros(len(df))  # Initial bottom for stacking
-for i, col in enumerate(df.columns):
-    if (col != "as-type"):
-        ax.bar(df.index, df[col], bottom=bottom, color=base_colors[i], label=col)
-        #bottom += df[col].values  # Update bottom for next stack
+    df = pd.DataFrame(sorted_data, index=[as_to_name[a[0]] for a in plotable_ases])
 
+    year = filename.split("/")[-1][0:4]
 
-# # Hinterste Säule (größter Wert, volle Sichtbarkeit)
-# for i in range(n_groups):
-#     ax.bar(i, values3[i], color=base_colors[i], alpha=0.3, width=bar_width)
+    if (replot):
+        # df.plot(kind="")
 
-# # Mittlere Säule (mittlerer Wert, halbtransparent)
-# for i in range(n_groups):
-#     ax.bar(i, values2[i], color=base_colors[i], alpha=0.5, width=bar_width)
+        # Beispiel-Daten
+        label_ases = [a[0] for a in plotable_ases]
+        # labels = [as_to_name[i] for i in label_ases]
+        # n_groups = len(labels)
+        # # Drei Werte für jede Säule (hinterster Wert ist der größte)
+        # values1 = np.array([a[3] for a in plotable_ases])  # Vorderster Wert
+        # values2 = np.array([a[2] for a in plotable_ases])  # Mittlerer Wert
+        # values3 = np.array([a[1] for a in plotable_ases])  # Hinterster Wert
 
-# # Vorderste Säule (kleinster Wert, voll sichtbar)
-# for i in range(n_groups):
-#     ax.bar(i, values1[i], color=base_colors[i], alpha=1.0, width=bar_width)
+        # color_dict = {0:"blue", 1:"red", 2:"green"}
 
-# Achsenbeschriftungen
-ax.set_xlabel("Networks grouped by cloud providers, Tier-1, and Tier-2 ISPs and sorted by descending hierarchy-free reachability")
-ax.set_ylabel("Number of ASes reachable")
-ax.set_title("Network reachability on CAIDA dataset from september 2024")
-# ax.set_xticks(np.arange(n_groups))
-# ax.set_xticklabels(labels, rotation=90)
-ax.set_xlim(-1.5, len(types) + 6.5)
+        # Farben für jede Säule (Basisfarben für vorderste Werte)
+        # base_colors = [color_dict[types[i]] for i in label_ases]
+        colors =   [["#6495ed", "#4169e1", "#0000ff"], # blue
+                    ["#f08080", "#cd5c5c", "#ff0000"], # red
+                    ["#98fb98", "#32cd32", "#008000"]] # green
+        base_colors = [[colors[types[a[0]]][0] for a in plotable_ases],#["#6495ed", "#f08080", "#98fb98"],
+                    [colors[types[a[0]]][1] for a in plotable_ases],#["#4169e1", "#cd5c5c", "#32cd32"],
+                    [colors[types[a[0]]][2] for a in plotable_ases]]#["#0000ff", "#ff0000", "#008000"]]
 
 
-legend_elements = [
-    Line2D.Line2D([0], [0], color='black', lw=2, label="Cloud"),
-    Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#0000ff', markersize=10, label="Provider-free"),
-    Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#4169e1', markersize=10, label="Tier1-free"),
-    Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#6495ed', markersize=10, label="Hierarchy-free"),
+        fig, ax = plt.subplots(figsize=(16, 8))
+        bar_width = 0.85
+        opacity = 1
+        fig.subplots_adjust(bottom=0.15)
+        # ax.set_ylim([0, max([a[1] for a in plotable_ases])])
 
-    Line2D.Line2D([0], [0], color='black', lw=2, label="Tier1"),
-    Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#ff0000', markersize=10, label="Provider-free"),
-    Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#cd5c5c', markersize=10, label="Tier1-free"),
-    Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#f08080', markersize=10, label="Hierarchy-free"),
+        bottom = np.zeros(len(df))  # Initial bottom for stacking
+        for i, col in enumerate(df.columns):
+            if (col != "as-type" and col != "reachability"):
+                ax.bar(df.index, df[col], bottom=bottom, color=base_colors[i], label=col)
+                #bottom += df[col].values  # Update bottom for next stack
 
-    Line2D.Line2D([0], [0], color='black', lw=2, label="Tier2"),
-    Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#008000', markersize=10, label="Provider-free"),
-    Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#32cd32', markersize=10, label="Tier1-free"),
-    Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#98fb98', markersize=10, label="Hierarchy-free"),
-]
 
-# Add the legend to the plot
-ax.legend(handles=legend_elements, loc="upper right", title="Reachability", )
+        # # Hinterste Säule (größter Wert, volle Sichtbarkeit)
+        # for i in range(n_groups):
+        #     ax.bar(i, values3[i], color=base_colors[i], alpha=0.3, width=bar_width)
 
-plt.xticks(rotation=90)
+        # # Mittlere Säule (mittlerer Wert, halbtransparent)
+        # for i in range(n_groups):
+        #     ax.bar(i, values2[i], color=base_colors[i], alpha=0.5, width=bar_width)
+
+        # # Vorderste Säule (kleinster Wert, voll sichtbar)
+        # for i in range(n_groups):
+        #     ax.bar(i, values1[i], color=base_colors[i], alpha=1.0, width=bar_width)
+
+        # Achsenbeschriftungen
+        xlabel = "Network{grouping} cloud providers, Tier-1, and Tier-2 ISPs and sorted by descending hierarchy-free reachability"
+        title = "Network reachability on CAIDA dataset from {month} {year}"
+        group_str = "s grouped by" if sort_by_type else ""
+        month = "december" if year == "2015" else "september"
+
+        ax.set_xlabel(xlabel.format(grouping=group_str))
+        ax.set_ylabel("Number of ASes reachable")
+        ax.set_title(title.format(month=month, year=year))
+
+        
+        # ax.set_xticks(np.arange(n_groups))
+        # ax.set_xticklabels(labels, rotation=90)
+        ax.set_xlim(-1.5, len(types) + 6.5)
+
+
+        legend_elements = [
+            Line2D.Line2D([0], [0], color='black', lw=2, label="Cloud"),
+            Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#0000ff', markersize=10, label="Provider-free"),
+            Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#4169e1', markersize=10, label="Tier1-free"),
+            Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#6495ed', markersize=10, label="Hierarchy-free"),
+
+            Line2D.Line2D([0], [0], color='black', lw=2, label="Tier1"),
+            Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#ff0000', markersize=10, label="Provider-free"),
+            Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#cd5c5c', markersize=10, label="Tier1-free"),
+            Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#f08080', markersize=10, label="Hierarchy-free"),
+
+            Line2D.Line2D([0], [0], color='black', lw=2, label="Tier2"),
+            Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#008000', markersize=10, label="Provider-free"),
+            Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#32cd32', markersize=10, label="Tier1-free"),
+            Line2D.Line2D([0], [0], marker='s', color='w', markerfacecolor='#98fb98', markersize=10, label="Hierarchy-free"),
+        ]
+
+        # Add the legend to the plot
+        ax.legend(handles=legend_elements, loc="upper right", title="Reachability")
+
+        plt.xticks(rotation=90)
+
+    grouped = "" if sort_by_type else "un"
+    png_name = "Diagrams/{year}_{un}grouped".format(year=year, un=grouped)
+    plt.savefig(png_name)
+    # plt.show()
+    print("Created Diagram ", png_name)
+    return sorted_data
+
+replot = False 
+calculate_and_plot("Data/20151201.as-rel2.txt", True, replot)
+data_2015 = calculate_and_plot("Data/20151201.as-rel2.txt", False, replot)
+calculate_and_plot("Data/20200901.as-rel2.txt", True, replot)
+data_2020 = calculate_and_plot("Data/20200901.as-rel2.txt", False, replot)
+calculate_and_plot("Data/20240901.as-rel2.txt", True, replot)
+data_2024 = calculate_and_plot("Data/20240901.as-rel2.txt", False, replot)
+
+fig, ax = plt.subplots(figsize=(8, 16))  # Adjust size as needed
+ax.axis('tight')  # Remove empty space
+ax.axis('off')    # Hide axes
+
+# Create the table
+table = ax.table(cellText=data_2015.values, colLabels=data_2015.columns, loc='center')
 
 plt.show()
-
-fig2, ax2 = plt.subplots(figsize=(16, 8))
